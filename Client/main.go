@@ -5,10 +5,6 @@ package main
 import (
 	"flag"
 	"fmt"
-	"log"
-	"net"
-	"net/http"
-	"net/rpc"
 	"os"
 )
 
@@ -23,7 +19,6 @@ func main() {
 	}
 	inputValidator()
 	// Get the first command-line argument (excluding the program name)
-
 }
 
 func inputValidator() {
@@ -82,7 +77,11 @@ func inputValidator() {
 	CreateNode(address, port, joinAddress, joinPort, stabilizeInterval,
 		fixFingersInterval, checkPredecessorInterval, numSuccessors, clientID)
 
-	takeCommand()
+		
+		fmt.Printf("success")
+
+
+	//takeCommand()
 
 	/* 	if joinAddress == "" {
 	   		create(&Client)
@@ -93,7 +92,9 @@ func inputValidator() {
 }
 
 func CreateNode(address string, port int, joinAddress string, joinPort int, stabilizeInterval int,
-	fixFingersInterval int, checkPredecessorInterval int, numSuccessors int, clientID string) {
+	fixFingersInterval int, checkPredecessorInterval int, numSuccessors int, clientID string) NodeClient {
+
+	var node NodeClient
 
 	Node = NodeClient{
 		Address:                  address,
@@ -107,11 +108,12 @@ func CreateNode(address string, port int, joinAddress string, joinPort int, stab
 	}
 
 	if Node.JoinAddress == "" {
-		NewChord()
+		node = NewChord()
 	} else {
 		JoinChord()
 
 	}
+	return node
 
 }
 
@@ -130,17 +132,7 @@ func takeCommand() {
 	}
 }
 
-func (n *NodeClient) server(port int) {
-	rpc.Register(n)
-	rpc.HandleHTTP()
-	portString := ":" + string(port)
-	l, e := net.Listen("tcp", portString)
-	if e != nil {
-		log.Fatal("listen error:", e)
-	}
-	////fmt.Println("listening on port 1234 with adress ", l.Addr())
-	go http.Serve(l, nil)
-}
+
 
 func join(node *NodeClient) {
 	fmt.Printf("Joining an existing Chord ring at %s:%d...\n", node.JoinAddress, node.JoinPort)

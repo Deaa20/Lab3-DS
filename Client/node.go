@@ -1,9 +1,12 @@
 package main
 
 import (
-    "fmt"
-    "log"
-	"net/rpc")
+	"fmt"
+	"log"
+	"net"
+	"net/http"
+	"net/rpc"
+)
 
 type NodeClient struct {
 	Address                  string
@@ -28,8 +31,7 @@ type NodeInfo struct {
 	Port    int
 }
 
-
-func NewChord() {
+func NewChord() NodeClient {
 	successors := make([]string, Node.NumSuccessors)
 	for i := range successors {
 		successors[i] = Node.Address
@@ -38,7 +40,10 @@ func NewChord() {
 	for i := range fingerTable {
 		fingerTable[i] = NodeInfo{Address: Node.Address, Port: Node.Port}
 	}
-	Node.Predecessor = ""
+	Node.Server(Node.Port)
+
+	return Node
+
 }
 
 func JoinChord() {
@@ -71,13 +76,27 @@ func callNode(rpcname string, args interface{}, reply interface{}, address strin
 	return false
 }
 
+func (n *NodeClient) Server(port int) {
+	
+	rpc.Register(n)
+	rpc.HandleHTTP()
+	portString := ":" + fmt.Sprint(port)
+	fmt.Print(portString + "...\n")
+	l, e := net.Listen("tcp", portString)
+	if e != nil {
+		log.Fatal("listen error:", e)
+	}
+	go http.Serve(l, nil)	
+}
 
-
-
-
-
-
-
+func (n *NodeClient) SendTest(args *FindSuccessorArgs, reply *FindSuccessorReply) error {
+	args.String = "it works mf"
+	return nil
+}
+func (n *NodeClient) ReciveTest(args *FindSuccessorArgs, reply *FindSuccessorReply) error {
+	fmt.Print(reply.String)
+	return nil
+}
 
 func LeaveChord() {
 
