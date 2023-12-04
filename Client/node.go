@@ -82,7 +82,21 @@ func callNode(rpcname string, args interface{}, reply interface{}, address strin
 func LeaveChord() {
 
 }
-func Lookup() {}
+
+func (n *NodeClient)FindSuccessor() NodeClient {
+	  node := NodeClient{}
+		return node
+}
+
+func (n *NodeClient)Lookup(key string, node NodeClient) string {
+	successor := node.FindSuccessor()
+	if successor.Address == key {
+		return successor.Address
+	} else {
+		return successor.Lookup(key, node)
+	}
+
+}
 
 func StoreFile() {
 
