@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"time"
 )
 
 type Key string
@@ -44,11 +45,12 @@ func inputValidator() {
 
 	flag.Parse()
 
+
 	if address == "" {
 		fmt.Printf("Error: Please input an adress ")
 		os.Exit(1)
 	}
-	if port < 0 && port > 65535 {
+	if port < 0 || port > 65535 {
 		fmt.Printf("Error:Please provide a valid port")
 		os.Exit(1)
 
@@ -57,6 +59,7 @@ func inputValidator() {
 		fmt.Println("Error: Both --ja and --jp must be specified if one is provided.")
 		os.Exit(1)
 	}
+
 	if stabilizeInterval < 1 || stabilizeInterval > 60000 ||
 		fixFingersInterval < 1 || fixFingersInterval > 60000 ||
 		checkPredecessorInterval < 1 || checkPredecessorInterval > 60000 {
@@ -70,16 +73,25 @@ func inputValidator() {
 		flag.Usage()
 		os.Exit(1)
 	}
+	
 	if clientID == "" {
 		//hash the adress
 	}
 
-	CreateNode(address, port, joinAddress, joinPort, stabilizeInterval,
+
+
+	client := CreateNode(address, port, joinAddress, joinPort, stabilizeInterval,
 		fixFingersInterval, checkPredecessorInterval, numSuccessors, clientID)
+	
+	fmt.Print(client.JoinPort)
+	fmt.Print("-----------------------------------")
+	
 
-		
-		fmt.Printf("success")
-
+		for Node.Done() == false {
+			time.Sleep(time.Second)
+		}
+		Node.Status = 0
+	
 
 	//takeCommand()
 
@@ -94,28 +106,30 @@ func inputValidator() {
 func CreateNode(address string, port int, joinAddress string, joinPort int, stabilizeInterval int,
 	fixFingersInterval int, checkPredecessorInterval int, numSuccessors int, clientID string) NodeClient {
 
-	var node NodeClient
-
 	Node = NodeClient{
 		Address:                  address,
 		Port:                     port,
 		JoinAddress:              joinAddress,
+		JoinPort: 				  joinPort,		
 		StabilizeInterval:        stabilizeInterval,
 		FixFingersInterval:       fixFingersInterval,
 		CheckPredecessorInterval: checkPredecessorInterval,
 		NumSuccessors:            numSuccessors,
 		ClientID:                 clientID,
+		Status:					   1, 
 	}
+	
 
 	if Node.JoinAddress == "" {
-		node = NewChord()
+	    NewChord()
 	} else {
 		JoinChord()
-
 	}
-	return node
+	return Node
 
 }
+
+
 
 func takeCommand() {
 	var command string

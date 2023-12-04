@@ -6,6 +6,7 @@ import (
 	"net"
 	"net/http"
 	"net/rpc"
+	"sync"
 )
 
 type NodeClient struct {
@@ -22,6 +23,8 @@ type NodeClient struct {
 	CheckPredecessorInterval int
 	NumSuccessors            int
 	ClientID                 string
+	Lock                     sync.Mutex
+	Status                   int
 }
 
 var Node NodeClient
@@ -31,7 +34,7 @@ type NodeInfo struct {
 	Port    int
 }
 
-func NewChord() NodeClient {
+func NewChord() {
 	successors := make([]string, Node.NumSuccessors)
 	for i := range successors {
 		successors[i] = Node.Address
@@ -40,19 +43,20 @@ func NewChord() NodeClient {
 	for i := range fingerTable {
 		fingerTable[i] = NodeInfo{Address: Node.Address, Port: Node.Port}
 	}
-	Node.Server(Node.Port)
-
-	return Node
-
+	go Node.Server(Node.Port)
 }
 
 func JoinChord() {
 	Node.Predecessor = ""
 	args := FindSuccessorArgs{}
 	reply := FindSuccessorReply{}
-	ok := callNode("main.FindSuccessor", args, reply, Node.JoinAddress, Node.JoinPort)
-	if ok {
 
+	ok := callNode("NodeClient.SendTest", args, reply, Node.JoinAddress, Node.JoinPort)
+	if ok {
+		Node.ReciveTest(args, reply)
+
+	} else {
+		fmt.Print("here i am")
 	}
 
 }
@@ -69,15 +73,16 @@ func callNode(rpcname string, args interface{}, reply interface{}, address strin
 
 	err = c.Call(rpcname, args, reply)
 	if err == nil {
+
 		return true
 	}
 
-	//fmt.Println(err)
+	fmt.Println(err)
 	return false
 }
 
 func (n *NodeClient) Server(port int) {
-	
+
 	rpc.Register(n)
 	rpc.HandleHTTP()
 	portString := ":" + fmt.Sprint(port)
@@ -86,14 +91,27 @@ func (n *NodeClient) Server(port int) {
 	if e != nil {
 		log.Fatal("listen error:", e)
 	}
-	go http.Serve(l, nil)	
+
+	http.Serve(l, nil)
+
+}
+
+func (n *NodeClient) Done() bool {
+	n.Lock.Lock()
+	defer n.Lock.Unlock()
+	ret := false
+
+	if n.Status == 0 {
+		ret = true
+	}
+	return ret
 }
 
 func (n *NodeClient) SendTest(args *FindSuccessorArgs, reply *FindSuccessorReply) error {
 	args.String = "it works mf"
 	return nil
 }
-func (n *NodeClient) ReciveTest(args *FindSuccessorArgs, reply *FindSuccessorReply) error {
+func (n *NodeClient) ReciveTest(args FindSuccessorArgs, reply FindSuccessorReply) error {
 	fmt.Print(reply.String)
 	return nil
 }
