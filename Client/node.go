@@ -51,7 +51,7 @@ func JoinChord() {
 	args := FindSuccessorArgs{}
 	args.String = "join"
 	reply := FindSuccessorReply{}
-	fmt.Print(args.String+ " im here at joinChord")
+	fmt.Print(args.String + " im here at joinChord")
 
 	ok := callNode("NodeClient.SendTest", &args, &reply, Node.JoinAddress, Node.JoinPort)
 
@@ -86,7 +86,7 @@ func callNode(rpcname string, args interface{}, reply interface{}, address strin
 }
 
 func (n *NodeClient) Server(port int) {
-	fmt.Print("Server is running \n " )
+	fmt.Print("Server is running \n ")
 
 	rpc.Register(n)
 	rpc.HandleHTTP()
@@ -98,7 +98,6 @@ func (n *NodeClient) Server(port int) {
 		log.Fatal("listen error:", e)
 	}
 	http.Serve(l, nil)
-
 
 }
 
@@ -113,7 +112,7 @@ func (n *NodeClient) Done() bool {
 }
 
 func (n *NodeClient) SendTest(args *FindSuccessorArgs, reply *FindSuccessorReply) error {
-	
+
 	reply.String = args.String
 	return nil
 }
@@ -131,5 +130,17 @@ func StoreFile() {
 
 }
 
-func PrintState() {
+func PrintState(node *NodeClient) {
+	fmt.Printf("Printing the state of the ccurrent node\n ")
+	fmt.Printf("Address:" + node.Address + "\n ")
+	fmt.Printf("port:" + fmt.Sprint(node.Port) + "\n ")
+	fmt.Printf("predecessor:" + node.Predecessor + "\n ")
+	fmt.Printf("JoinAddress:" + node.JoinAddress + "\n ")
+	fmt.Printf("JoinPort:" + fmt.Sprint(node.JoinPort) + "\n ")
+	fmt.Printf("StabilizeInterval:" + fmt.Sprint(node.StabilizeInterval) + "\n ")
+	fmt.Printf("FixFingersInterval:" + fmt.Sprint(node.FixFingersInterval) + "\n ")
+	fmt.Printf("CheckPredecessorInterval:" + fmt.Sprint(node.CheckPredecessorInterval) + "\n ")
+	fmt.Printf("NumSuccessors:" + fmt.Sprint(node.NumSuccessors) + "\n ")
+	fmt.Printf("ClientID:" + node.ClientID + "\n ")
+
 }
