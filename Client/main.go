@@ -98,7 +98,7 @@ func inputValidator() {
 }
 
 func CreateNode(address string, port int, joinAddress string, joinPort int, stabilizeInterval int,
-	fixFingersInterval int, checkPredecessorInterval int, numSuccessors int, clientID string) NodeClient {
+	fixFingersInterval int, checkPredecessorInterval int, numSuccessors int, clientID string) {
 
 	Node = NodeClient{
 		Address:                  address,
@@ -118,7 +118,6 @@ func CreateNode(address string, port int, joinAddress string, joinPort int, stab
 	} else {
 		JoinChord()
 	}
-	return Node
 
 }
 
