@@ -48,17 +48,21 @@ func NewChord() {
 
 func JoinChord() {
 	Node.Predecessor = ""
-	args := FindSuccessorArgs{String: "join"}
+	args := FindSuccessorArgs{}
+	args.String = "join"
 	reply := FindSuccessorReply{}
+	fmt.Print(args.String+ " im here at joinChord")
 
 	ok := callNode("NodeClient.SendTest", &args, &reply, Node.JoinAddress, Node.JoinPort)
 
 	//ok := callNode("NodeClient.SendTest", &args, &reply, Node.JoinAddress, Node.JoinPort)
 	if ok {
-		Node.ReciveTest(&args, &reply)
+		fmt.Print("Chord is working \n")
+		fmt.Print(reply.String)
+		//Node.ReciveTest(&args, &reply)
 
 	} else {
-		fmt.Print("here i am")
+		fmt.Print("JoinChord is not OK")
 	}
 
 }
@@ -78,12 +82,12 @@ func callNode(rpcname string, args interface{}, reply interface{}, address strin
 	if err == nil {
 		return true
 	}
-
-	fmt.Println(err)
 	return false
 }
 
 func (n *NodeClient) Server(port int) {
+	fmt.Print("Server is running \n " )
+
 	rpc.Register(n)
 	rpc.HandleHTTP()
 	portString := ":" + fmt.Sprint(port)
@@ -94,6 +98,7 @@ func (n *NodeClient) Server(port int) {
 		log.Fatal("listen error:", e)
 	}
 	http.Serve(l, nil)
+
 
 }
 
@@ -108,15 +113,12 @@ func (n *NodeClient) Done() bool {
 }
 
 func (n *NodeClient) SendTest(args *FindSuccessorArgs, reply *FindSuccessorReply) error {
-	fmt.Print("checking if im here or not")
-
-	reply.String = "it works mf"
-	fmt.Print("it works mf-------------------------")
+	
+	reply.String = args.String
 	return nil
 }
 func (n *NodeClient) ReciveTest(args *FindSuccessorArgs, reply *FindSuccessorReply) error {
 	fmt.Print(reply.String)
-	fmt.Print("it works mf-------------------------")
 	return nil
 }
 

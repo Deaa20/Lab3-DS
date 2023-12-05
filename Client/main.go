@@ -45,7 +45,6 @@ func inputValidator() {
 
 	flag.Parse()
 
-
 	if address == "" {
 		fmt.Printf("Error: Please input an adress ")
 		os.Exit(1)
@@ -73,25 +72,20 @@ func inputValidator() {
 		flag.Usage()
 		os.Exit(1)
 	}
-	
+
 	if clientID == "" {
 		//hash the adress
 	}
 
-
-
-	client := CreateNode(address, port, joinAddress, joinPort, stabilizeInterval,
+	CreateNode(address, port, joinAddress, joinPort, stabilizeInterval,
 		fixFingersInterval, checkPredecessorInterval, numSuccessors, clientID)
-	
-	fmt.Print(client.JoinPort)
-	fmt.Print("-----------------------------------")
-	
 
-		for Node.Done() == false {
-			time.Sleep(time.Second)
-		}
-		Node.Status = 0
-	
+	fmt.Print("waiting in the main \n")
+
+	for Node.Done() == false {
+		time.Sleep(time.Second)
+	}
+	Node.Status = 0
 
 	//takeCommand()
 
@@ -110,26 +104,23 @@ func CreateNode(address string, port int, joinAddress string, joinPort int, stab
 		Address:                  address,
 		Port:                     port,
 		JoinAddress:              joinAddress,
-		JoinPort: 				  joinPort,		
+		JoinPort:                 joinPort,
 		StabilizeInterval:        stabilizeInterval,
 		FixFingersInterval:       fixFingersInterval,
 		CheckPredecessorInterval: checkPredecessorInterval,
 		NumSuccessors:            numSuccessors,
 		ClientID:                 clientID,
-		Status:					   1, 
+		Status:                   1,
 	}
-	
 
 	if Node.JoinAddress == "" {
-	    NewChord()
+		NewChord()
 	} else {
 		JoinChord()
 	}
 	return Node
 
 }
-
-
 
 func takeCommand() {
 	var command string
@@ -145,8 +136,6 @@ func takeCommand() {
 		takeCommand()
 	}
 }
-
-
 
 func join(node *NodeClient) {
 	fmt.Printf("Joining an existing Chord ring at %s:%d...\n", node.JoinAddress, node.JoinPort)
