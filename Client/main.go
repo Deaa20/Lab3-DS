@@ -82,12 +82,12 @@ func inputValidator() {
 
 	fmt.Print("waiting in the main \n")
 
+	
 	for Node.Done() == false {
+		takeCommand(&Node)
 		time.Sleep(time.Second)
-	}
-	Node.Status = 0
 
-	//takeCommand()
+	}
 
 	/* 	if joinAddress == "" {
 	   		create(&Client)
@@ -122,18 +122,27 @@ func CreateNode(address string, port int, joinAddress string, joinPort int, stab
 
 }
 
-func takeCommand() {
+func takeCommand(node *NodeClient) {
 	var command string
-	fmt.Println("------------------------------------------\nWelcome to the Chord server.\n------------------------------------------\nType Lookup + file name to search for a file\nStoreFile + file name to store a file on the Chord ring\nPrintState to print out the local state of the Chord client")
+	fmt.Println("------------------------------------------Welcome to the Chord server.------------------------------------------\n Type the following commands with respect to the case sensetivty \n"+
+	" Lookup + file name to search for a file \n nStoreFile + file name to store a file on the Chord ring\n PrintState to print out the local state of the Chord client")
+	
+	
 	fmt.Scanln(&command)
+
+	if command == "Leave" {
+		node.Status = 0
+	}
+
 	if command == "Lookup" {
 	}
 	if command == "StoreFile" {
 	}
 	if command == "PrintState" {
+		PrintState(node)
+
 	} else {
 		fmt.Print("The provided command is invalid, please follow the guide providein the welcome message. ")
-		takeCommand()
 	}
 }
 
