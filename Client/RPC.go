@@ -4,21 +4,11 @@ import (
 
 )
 
-type ExampleArgs struct {
-	String string
-	Number int
-}
-
-type ExampleReply struct {
-	String string
-	Number int
-}
-
 type FindSuccessorArgs struct {
-	Successor string
+	String string
 }
 
 type FindSuccessorReply struct {
-	Successor string
+	String string
 }
 

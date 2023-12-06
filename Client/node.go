@@ -6,7 +6,6 @@ import (
 	"net"
 	"net/http"
 	"net/rpc"
-	"strconv"
 	"sync"
 )
 
@@ -40,61 +39,32 @@ func NewChord() {
 	for i := range successors {
 		successors[i] = Node.Address
 	}
-	fingerTable := make([]string, 160)
+	fingerTable := make([]NodeInfo, 160)
 	for i := range fingerTable {
-		fingerTable[i] = Node.Address + strconv.Itoa(Node.Port)
+		fingerTable[i] = NodeInfo{Address: Node.Address, Port: Node.Port}
 	}
-
-	//Successor of node is the node itself
-	Node.Predecessor = ""
-	Node.FingerTable = fingerTable
-	Node.Successors = successors
 	go Node.Server(Node.Port)
 }
 
 func JoinChord() {
 	Node.Predecessor = ""
-	args := ExampleArgs{}
-	args.String = "I have joined the Chord"
-	args.Number = 1
-	reply := ExampleReply{}
-	fmt.Println(args.String+ " im here at joinChord")
+	args := FindSuccessorArgs{}
+	args.String = "join"
+	reply := FindSuccessorReply{}
+	fmt.Print(args.String+ " im here at joinChord")
 
 	ok := callNode("NodeClient.SendTest", &args, &reply, Node.JoinAddress, Node.JoinPort)
 
-
-
 	//ok := callNode("NodeClient.SendTest", &args, &reply, Node.JoinAddress, Node.JoinPort)
 	if ok {
-		fmt.Println("Chord is working")
-		fmt.Println(reply.String)
-		fmt.Println(reply.Number)
+		fmt.Print("Chord is working \n")
+		fmt.Print(reply.String)
 		//Node.ReciveTest(&args, &reply)
 
 	} else {
 		fmt.Print("JoinChord is not OK")
 	}
 
-
-	// Fund successor of node
-	argsFindSuccessor := FindSuccessorArgs{}
-	replyFindSuccessor := FindSuccessorReply{}
-	ok = callNode("NodeClient.FindSuccessor", &argsFindSuccessor, &replyFindSuccessor, Node.JoinAddress, Node.JoinPort)
-
-	if ok {
-		fmt.Println("Found successor")
-		fmt.Println(replyFindSuccessor.Successor)
-		Node.Successors[0] = replyFindSuccessor.Successor
-
-	} else {
-		fmt.Print("Error when looking for successor")
-	}
-
-	// Notify successor of node that the node is the predecessor
-	ok = callNode("NodeClient.Notify", &args, &reply, Node.Successors[0], Node.JoinPort)
-	if !ok {
-		fmt.Print("Error when notifying successor")
-	}
 }
 
 func callNode(rpcname string, args interface{}, reply interface{}, address string, port int) bool {
@@ -142,21 +112,13 @@ func (n *NodeClient) Done() bool {
 	return ret
 }
 
-func (n *NodeClient) SendTest(args *ExampleArgs, reply *ExampleReply) error {
+func (n *NodeClient) SendTest(args *FindSuccessorArgs, reply *FindSuccessorReply) error {
 	
 	reply.String = args.String
-	reply.Number = args.Number + 10
 	return nil
 }
-
-
-func (n *NodeClient) ReciveTest(args *ExampleArgs, reply *ExampleReply) error {
+func (n *NodeClient) ReciveTest(args *FindSuccessorArgs, reply *FindSuccessorReply) error {
 	fmt.Print(reply.String)
-	return nil
-}
-
-func (n *NodeClient) FindSuccessor(args *FindSuccessorArgs, reply *FindSuccessorReply) error {
-	reply.Successor = "I am the successor"
 	return nil
 }
 
