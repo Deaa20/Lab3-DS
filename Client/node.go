@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"math/big"
 	"net"
 	"net/http"
 	"net/rpc"
@@ -22,7 +23,7 @@ type NodeClient struct {
 	FixFingersInterval       int
 	CheckPredecessorInterval int
 	NumSuccessors            int
-	ClientID                 string
+	ClientID                 *big.Int
 	Lock                     sync.Mutex
 	Status                   int
 }
@@ -32,6 +33,31 @@ var Node NodeClient
 type NodeInfo struct {
 	Address string
 	Port    int
+}
+
+func CreateNode(address string, port int, joinAddress string, joinPort int, stabilizeInterval int,
+	fixFingersInterval int, checkPredecessorInterval int, numSuccessors int, clientID string) NodeClient {
+
+	Node = NodeClient{
+		Address:                  address,
+		Port:                     port,
+		JoinAddress:              joinAddress,
+		JoinPort:                 joinPort,
+		StabilizeInterval:        stabilizeInterval,
+		FixFingersInterval:       fixFingersInterval,
+		CheckPredecessorInterval: checkPredecessorInterval,
+		NumSuccessors:            numSuccessors,
+		ClientID:                 HashString(clientID),
+		Status:                   1,
+	}
+
+	if Node.JoinAddress == "" {
+		NewChord()
+	} else {
+		JoinChord()
+	}
+	return Node
+
 }
 
 func NewChord() {
@@ -141,6 +167,5 @@ func PrintState(node *NodeClient) {
 	fmt.Printf("FixFingersInterval:" + fmt.Sprint(node.FixFingersInterval) + "\n ")
 	fmt.Printf("CheckPredecessorInterval:" + fmt.Sprint(node.CheckPredecessorInterval) + "\n ")
 	fmt.Printf("NumSuccessors:" + fmt.Sprint(node.NumSuccessors) + "\n ")
-	fmt.Printf("ClientID:" + node.ClientID + "\n ")
-
+	fmt.Printf("ClientID:" + fmt.Sprintf("%040x", (node.ClientID)) + "\n ")
 }
