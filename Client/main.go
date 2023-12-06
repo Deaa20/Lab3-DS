@@ -21,7 +21,7 @@ func main() {
 		fmt.Println("Please provide an input argument.")
 		return
 	}
-	
+
 	inputValidator()
 	// Get the first command-line argument (excluding the program name)
 }
@@ -146,6 +146,8 @@ func join(node *NodeClient) {
 
 }
 
+
+// Computes n + 2^(i-1) mod 
 func AddEntry(address string, fingerentry int) *big.Int {
 	const keySize = sha1.Size * 8 
 	var two = big.NewInt(2)
@@ -158,7 +160,7 @@ func AddEntry(address string, fingerentry int) *big.Int {
 
 	return new(big.Int).Mod(sum, hashMod)
 }
-
+//Hash a string using sha1
 func HashString(elt string) *big.Int {
 	hasher := sha1.New()
 	hasher.Write([]byte(elt))
