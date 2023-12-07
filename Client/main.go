@@ -3,10 +3,8 @@ package main
 //make predecesoor and successor store address and port
 
 import (
-	"crypto/sha1"
 	"flag"
 	"fmt"
-	"math/big"
 	"os"
 	"strings"
 	"time"
@@ -147,22 +145,3 @@ func join(node *NodeClient) {
 }
 
 
-// Computes n + 2^(i-1) mod 
-func AddEntry(address string, fingerentry int) *big.Int {
-	const keySize = sha1.Size * 8 
-	var two = big.NewInt(2)
-	var hashMod = new(big.Int).Exp(big.NewInt(2), big.NewInt(keySize), nil)
-
-	n := HashString(address)
-	fingerentryminus1 := big.NewInt(int64(fingerentry) - 1)
-	jump := new(big.Int).Exp(two, fingerentryminus1, nil)
-	sum := new(big.Int).Add(n, jump)
-
-	return new(big.Int).Mod(sum, hashMod)
-}
-//Hash a string using sha1
-func HashString(elt string) *big.Int {
-	hasher := sha1.New()
-	hasher.Write([]byte(elt))
-	return new(big.Int).SetBytes(hasher.Sum(nil))
-}

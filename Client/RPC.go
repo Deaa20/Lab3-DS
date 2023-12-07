@@ -1,12 +1,15 @@
 package main
 
-import (
 
-)
-
-type AddFinger struct {
-	ClinetAdress string
-
+type AddFingerEntryArgs struct {
+	Port int
+	Address string
+	Status int
+	
+}
+type AddFingerEntryReply struct {
+	Status int
+	
 }
 type FindSuccessorArgs struct {
 	String string
