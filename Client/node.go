@@ -172,3 +172,75 @@ func PrintState(node *NodeClient) {
 	fmt.Printf("NumSuccessors:" + fmt.Sprint(node.NumSuccessors) + "\n ")
 	fmt.Printf("ClientID:" + fmt.Sprintf("%040x", (node.ClientID)) + "\n ")
 }
+
+
+
+func(n *NodeClient) Stabilize(){
+	
+	// First get all successors
+	// Successors := n.getSuccessors(n.Address)
+	// Check for error
+	// if err != nil {
+
+	// 	fmt.Print("Could not get successors")
+
+	// 	if n.Successors[0] == "" {
+	// 		// Then use the node itself as successor
+	// 		n.Successors[0] = n.Address
+			
+	// 	}else{
+	// 		// Successor at place 0 might not be working so we need to find a new one
+	// 		for i := 0; i < len(n.Successors); i++ {
+	// 			if i < len(n.Successors)-1 {
+	// 				n.Successors[i] = n.Successors[i+1]
+	// 			}else{
+	// 				n.Successors[i] = ""
+	// 			}
+	// 		}
+	// 	}
+
+	// }else{
+	// 	for i := 0; i < len(Successors); i++ {
+	// 		// This depends if we have the node in polace 0 or not?
+	// 		n.Successors[i] = Successors[i]
+	// 	}
+	// }
+
+
+	// // get predecessor of successor 0
+
+	// if err == nil {
+	// 	// Get successor 
+	
+	// 	// get predecessor identifier
+	// 	// if predecessor identifier is between n and successor 0
+	// 	// then successor 0 is predecessor
+	// 	if between(n.Address, Predecessor.address, successorIdentifier, false) {
+	// 		//n.Successors[0] = Predecessor
+	// 	}
+	// }
+
+	// // Notify the successor that it is the predecessor
+
+	// // Now delete all backups successors
+
+
+	// // If only one node in the ring then DO SOMETHING ELSE
+	// if n.Successors[0] == n.Address {
+	// 	// Do something
+	// }
+
+	// // Iterate through nodes bucket and copy file to successor 0 backup
+	// for key, value := range n.Bucket {
+	// 	if value == "" {
+	// 		break
+	// 	}else{
+	// 		copy files
+	// 	}
+	// }
+
+	// return nil
+
+
+
+}
