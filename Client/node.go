@@ -1,7 +1,7 @@
 package main
 
-
 import (
+	"crypto/sha1"
 	"fmt"
 	"log"
 	"math/big"
@@ -11,11 +11,16 @@ import (
 	"sync"
 )
 
+//status 0 means that the node is leaving the  chord ring
+//status 1 means that the node is joining the Chord ring
+//status 2 means that the node is in the chord ring
+
+const fingerTableSize int = 6
 
 type NodeClient struct {
 	Address                  string
 	Port                     int
-	FingerTable              []string
+	FingerTable              [6]string
 	Predecessor              string
 	Successors               []string
 	Bucket                   map[Key]string
@@ -29,7 +34,6 @@ type NodeClient struct {
 	Lock                     sync.Mutex
 	Status                   int
 }
-
 
 var Node NodeClient
 
@@ -77,29 +81,32 @@ func NewChord() {
 
 func JoinChord() {
 	Node.Predecessor = ""
-	args := FindSuccessorArgs{}
-	args.String = "join"
-	reply := FindSuccessorReply{}
-	fmt.Print(args.String + " im here at joinChord")
+	args := AddFingerEntryArgs{}
+	args.Port = Node.Port
+	args.Address = Node.Address
+	args.Status = Node.Status
 
-	ok := callNode("NodeClient.SendTest", &args, &reply, Node.JoinAddress, Node.JoinPort)
+	reply := AddFingerEntryReply{}
+	fmt.Print(fmt.Sprint(Node.Port) + " joining a chord ring using the port of the curent node \n")
+
+	ok := callNode("NodeClient.AddNode", &args, &reply)
 
 	//ok := callNode("NodeClient.SendTest", &args, &reply, Node.JoinAddress, Node.JoinPort)
-	if ok {
-		fmt.Print("Chord is working \n")
-		fmt.Print(reply.String)
+	if ok  {
+		fmt.Print("JoinChord is working  \n")
 		//Node.ReciveTest(&args, &reply)
 
 	} else {
-		fmt.Print("JoinChord is not OK")
+		fmt.Print("JoinChord has failed \n")
 	}
 
 }
 
-func callNode(rpcname string, args interface{}, reply interface{}, address string, port int) bool {
+func callNode(rpcname string, args interface{}, reply interface{}) bool {
 	//Check if Sprint works
 
-	addressPort := address + ":" + fmt.Sprint(port)
+	addressPort := Node.JoinAddress + ":" + fmt.Sprint(Node.JoinPort)
+	fmt.Print(addressPort + "\n")
 	c, err := rpc.DialHTTP("tcp", addressPort)
 
 	if err != nil {
@@ -111,6 +118,8 @@ func callNode(rpcname string, args interface{}, reply interface{}, address strin
 	if err == nil {
 		return true
 	}
+
+	fmt.Print("the error is " + fmt.Sprint(err) )
 	return false
 }
 
@@ -140,11 +149,46 @@ func (n *NodeClient) Done() bool {
 	return ret
 }
 
+//---------------------------------------------------RPC functions--------------------------------------------------------
+
+// A function to add a new node the Chord ring by a node which exist already in the ring
+
+func (n *NodeClient) AddNode(args *AddFingerEntryArgs, reply *AddFingerEntryReply) error {
+	fmt.Print("adding a node to the chord ring \n")
+	//n.Lock.Lock()
+	//defer n.Lock.Unlock()
+	clientPort := args.Port
+	//clientAdress := args.Address
+	clientStatus := args.Status
+	if clientStatus == 1 {
+	
+
+		for i := 0; i < len(n.FingerTable); i++ {
+			fmt.Println("in the if statement")
+
+			if n.FingerTable[i] == "" {
+				var entry = AddEntry(fmt.Sprint(clientPort), i)
+				n.FingerTable[i] = fmt.Sprintf("%040x", (entry))
+				reply.Status = 2
+				fmt.Println("Done adding")
+				break
+			}
+		}
+	} else {
+		fmt.Print("Failed to add node to the finger table")
+	}
+
+	return nil
+}
+
+// test
 func (n *NodeClient) SendTest(args *FindSuccessorArgs, reply *FindSuccessorReply) error {
 
 	reply.String = args.String
 	return nil
 }
+
+// test
 func (n *NodeClient) ReciveTest(args *FindSuccessorArgs, reply *FindSuccessorReply) error {
 	fmt.Print(reply.String)
 	return nil
@@ -171,6 +215,27 @@ func PrintState(node *NodeClient) {
 	fmt.Printf("CheckPredecessorInterval:" + fmt.Sprint(node.CheckPredecessorInterval) + "\n ")
 	fmt.Printf("NumSuccessors:" + fmt.Sprint(node.NumSuccessors) + "\n ")
 	fmt.Printf("ClientID:" + fmt.Sprintf("%040x", (node.ClientID)) + "\n ")
+}
+
+// Computes n + 2^(i-1) mod
+func AddEntry(address string, fingerentry int) *big.Int {
+	const keySize = sha1.Size * 8
+	var two = big.NewInt(2)
+	var hashMod = new(big.Int).Exp(big.NewInt(2), big.NewInt(keySize), nil)
+
+	n := HashString(address)
+	fingerentryminus1 := big.NewInt(int64(fingerentry) - 1)
+	jump := new(big.Int).Exp(two, fingerentryminus1, nil)
+	sum := new(big.Int).Add(n, jump)
+
+	return new(big.Int).Mod(sum, hashMod)
+}
+
+// Hash a string using sha1
+func HashString(elt string) *big.Int {
+	hasher := sha1.New()
+	hasher.Write([]byte(elt))
+	return new(big.Int).SetBytes(hasher.Sum(nil))
 }
 
 
