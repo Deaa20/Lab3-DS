@@ -4,6 +4,10 @@ import (
 
 )
 
+type AddFinger struct {
+	ClinetAdress string
+
+}
 type FindSuccessorArgs struct {
 	String string
 }

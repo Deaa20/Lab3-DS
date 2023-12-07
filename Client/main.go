@@ -3,9 +3,12 @@ package main
 //make predecesoor and successor store address and port
 
 import (
+	"crypto/sha1"
 	"flag"
 	"fmt"
+	"math/big"
 	"os"
+	"strings"
 	"time"
 )
 
@@ -18,6 +21,7 @@ func main() {
 		fmt.Println("Please provide an input argument.")
 		return
 	}
+
 	inputValidator()
 	// Get the first command-line argument (excluding the program name)
 }
@@ -83,57 +87,45 @@ func inputValidator() {
 	fmt.Print("waiting in the main \n")
 
 	for Node.Done() == false {
+		takeCommand(&Node)
 		time.Sleep(time.Second)
+
 	}
-	Node.Status = 0
-
-	//takeCommand()
-
-	/* 	if joinAddress == "" {
-	   		create(&Client)
-	   	} else {
-	   		join(&Client)
-	   	}
-	*/
-}
-
-func CreateNode(address string, port int, joinAddress string, joinPort int, stabilizeInterval int,
-	fixFingersInterval int, checkPredecessorInterval int, numSuccessors int, clientID string) NodeClient {
-
-	Node = NodeClient{
-		Address:                  address,
-		Port:                     port,
-		JoinAddress:              joinAddress,
-		JoinPort:                 joinPort,
-		StabilizeInterval:        stabilizeInterval,
-		FixFingersInterval:       fixFingersInterval,
-		CheckPredecessorInterval: checkPredecessorInterval,
-		NumSuccessors:            numSuccessors,
-		ClientID:                 clientID,
-		Status:                   1,
-	}
-
-	if Node.JoinAddress == "" {
-		NewChord()
-	} else {
-		JoinChord()
-	}
-	return Node
 
 }
 
-func takeCommand() {
+
+
+func takeCommand(node *NodeClient) {
 	var command string
-	fmt.Println("------------------------------------------\nWelcome to the Chord server.\n------------------------------------------\nType Lookup + file name to search for a file\nStoreFile + file name to store a file on the Chord ring\nPrintState to print out the local state of the Chord client")
+	var searchedFileName string
+	var storedFileName string
+	fmt.Println("------------------------------------------Welcome to the Chord server.------------------------------------------\n Type the following commands with respect to the case sensetivty \n" +
+		" Lookup  to search for a file \n Store to store a file on the Chord ring\n PrintState to print out the local state of the Chord client \n" +
+		"Leave for leaving the chord ring")
+
 	fmt.Scanln(&command)
-	if command == "Lookup" {
+
+	if command == "Leave" {
+		node.Status = 0
 	}
-	if command == "StoreFile" {
+
+	if command == "Lookup" {
+		fmt.Println("Provide the name of the file you are searching for")
+		fmt.Scanln(&searchedFileName)
+		searchedFileName = strings.TrimSpace(searchedFileName)
+
+	}
+	if command == "Store" {
+		fmt.Println("Provide the name of the file you are storing")
+		fmt.Scanln(&storedFileName)
+		storedFileName = strings.TrimSpace(storedFileName)
 	}
 	if command == "PrintState" {
+		PrintState(node)
+
 	} else {
 		fmt.Print("The provided command is invalid, please follow the guide providein the welcome message. ")
-		takeCommand()
 	}
 }
 
@@ -152,4 +144,25 @@ func join(node *NodeClient) {
 
 	// TODO: Update successor list
 
+}
+
+
+// Computes n + 2^(i-1) mod 
+func AddEntry(address string, fingerentry int) *big.Int {
+	const keySize = sha1.Size * 8 
+	var two = big.NewInt(2)
+	var hashMod = new(big.Int).Exp(big.NewInt(2), big.NewInt(keySize), nil)
+
+	n := HashString(address)
+	fingerentryminus1 := big.NewInt(int64(fingerentry) - 1)
+	jump := new(big.Int).Exp(two, fingerentryminus1, nil)
+	sum := new(big.Int).Add(n, jump)
+
+	return new(big.Int).Mod(sum, hashMod)
+}
+//Hash a string using sha1
+func HashString(elt string) *big.Int {
+	hasher := sha1.New()
+	hasher.Write([]byte(elt))
+	return new(big.Int).SetBytes(hasher.Sum(nil))
 }
