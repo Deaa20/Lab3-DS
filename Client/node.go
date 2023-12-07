@@ -1,5 +1,6 @@
 package main
 
+
 import (
 	"fmt"
 	"log"
@@ -9,6 +10,7 @@ import (
 	"net/rpc"
 	"sync"
 )
+
 
 type NodeClient struct {
 	Address                  string
@@ -27,6 +29,7 @@ type NodeClient struct {
 	Lock                     sync.Mutex
 	Status                   int
 }
+
 
 var Node NodeClient
 
