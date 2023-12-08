@@ -1,21 +1,20 @@
 package main
 
-
 type AddFingerEntryArgs struct {
-	Port int
+	Port    int
 	Address string
-	Status int
-	
+	Status  int
 }
 type AddFingerEntryReply struct {
 	Status int
-	
 }
+
 type FindSuccessorArgs struct {
-	String string
+	NodeAddress string
+	NodePort    string
 }
 
 type FindSuccessorReply struct {
-	String string
+	Successor string
+	Final     bool
 }
-

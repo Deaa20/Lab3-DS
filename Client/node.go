@@ -8,6 +8,7 @@ import (
 	"net"
 	"net/http"
 	"net/rpc"
+	"strings"
 	"sync"
 )
 
@@ -15,12 +16,12 @@ import (
 //status 1 means that the node is joining the Chord ring
 //status 2 means that the node is in the chord ring
 
-const fingerTableSize int = 6
+const fingerTableSize int = 161
 
 type NodeClient struct {
 	Address                  string
 	Port                     int
-	FingerTable              [6]string
+	FingerTable              [fingerTableSize]string
 	Predecessor              string
 	Successors               []string
 	Bucket                   map[Key]string
@@ -54,9 +55,19 @@ func CreateNode(address string, port int, joinAddress string, joinPort int, stab
 		FixFingersInterval:       fixFingersInterval,
 		CheckPredecessorInterval: checkPredecessorInterval,
 		NumSuccessors:            numSuccessors,
-		ClientID:                 HashString(clientID),
 		Status:                   1,
 	}
+
+	if clientID == "" {
+		Node.ClientID = HashString(fmt.Sprintf("%s:%d", address, port))
+
+	} else {
+		c := new(big.Int)
+		c.SetString(clientID, 10)
+		Node.ClientID = c
+	}
+
+	fmt.Println("successor" + fmt.Sprint(Node.NumSuccessors))
 
 	if Node.JoinAddress == "" {
 		NewChord()
@@ -68,44 +79,63 @@ func CreateNode(address string, port int, joinAddress string, joinPort int, stab
 }
 
 func NewChord() {
-	successors := make([]string, Node.NumSuccessors)
-	for i := range successors {
-		successors[i] = Node.Address
+	Node.Predecessor = ""
+	Node.Successors = make([]string, Node.NumSuccessors)
+	for i := range Node.Successors {
+		Node.Successors[i] = Node.Address + ":" + fmt.Sprint(Node.Port)
 	}
-	fingerTable := make([]NodeInfo, 160)
-	for i := range fingerTable {
-		fingerTable[i] = NodeInfo{Address: Node.Address, Port: Node.Port}
+
+	for i := range Node.FingerTable {
+		Node.FingerTable[i] = Node.Address + ":" + fmt.Sprint(Node.Port)
 	}
 	go Node.Server(Node.Port)
 }
 
 func JoinChord() {
-	Node.Predecessor = ""
-	args := AddFingerEntryArgs{}
-	args.Port = Node.Port
-	args.Address = Node.Address
-	args.Status = Node.Status
 
-	reply := AddFingerEntryReply{}
+	Node.Predecessor = ""
+	Node.Successors = make([]string, Node.NumSuccessors)
+	for i := range Node.Successors {
+		Node.Successors[i] = Node.Address + ":" + fmt.Sprint(Node.Port)
+	}
+
+	for i := range Node.FingerTable {
+		Node.FingerTable[i] = Node.Address + ":" + fmt.Sprint(Node.Port)
+	}
+	args := FindSuccessorArgs{}
+	args.NodeAddress = Node.Address
+	args.NodePort = fmt.Sprint(Node.Port)
+	reply := FindSuccessorReply{}
+
 	fmt.Print(fmt.Sprint(Node.Port) + " joining a chord ring using the port of the curent node \n")
 
-	ok := callNode("NodeClient.AddNode", &args, &reply)
+	done := false
+	address := Node.JoinAddress
+	port := fmt.Sprint(Node.JoinPort)
 
-	//ok := callNode("NodeClient.SendTest", &args, &reply, Node.JoinAddress, Node.JoinPort)
-	if ok  {
-		fmt.Print("JoinChord is working  \n")
-		//Node.ReciveTest(&args, &reply)
+	fmt.Println("address" + address)
+	fmt.Println("Port" + port)
+	for done != true {
+		ok := callNode("NodeClient.FindSuccessor", &args, &reply, address, port)
 
-	} else {
-		fmt.Print("JoinChord has failed \n")
+		if ok {
+			splitted := strings.Split(reply.Successor, ":")
+			address = splitted[0]
+			port = splitted[1]
+			done = reply.Final
+			fmt.Println("We found the successor: ", splitted)
+		} else {
+			fmt.Println("error finding successor ")
+		}
 	}
+	Node.Successors[0] = address + ":" + fmt.Sprint(port)
 
 }
 
-func callNode(rpcname string, args interface{}, reply interface{}) bool {
+func callNode(rpcname string, args interface{}, reply interface{}, address string, port string) bool {
 	//Check if Sprint works
 
-	addressPort := Node.JoinAddress + ":" + fmt.Sprint(Node.JoinPort)
+	addressPort := address + ":" + port
 	fmt.Print(addressPort + "\n")
 	c, err := rpc.DialHTTP("tcp", addressPort)
 
@@ -119,7 +149,7 @@ func callNode(rpcname string, args interface{}, reply interface{}) bool {
 		return true
 	}
 
-	fmt.Print("the error is " + fmt.Sprint(err) )
+	fmt.Print("the error is " + fmt.Sprint(err))
 	return false
 }
 
@@ -153,6 +183,33 @@ func (n *NodeClient) Done() bool {
 
 // A function to add a new node the Chord ring by a node which exist already in the ring
 
+func between(start, elt, end *big.Int, inclusive bool) bool {
+	if end.Cmp(start) > 0 {
+		return (start.Cmp(elt) < 0 && elt.Cmp(end) < 0) || (inclusive && elt.Cmp(end) == 0)
+	} else {
+		return start.Cmp(elt) < 0 || elt.Cmp(end) < 0 || (inclusive && elt.Cmp(end) == 0)
+	}
+}
+
+func (n *NodeClient) FindSuccessor(args *FindSuccessorArgs, reply *FindSuccessorReply) error {
+	Key := HashString(fmt.Sprintf("%s:%d", args.NodeAddress, args.NodePort))
+	fmt.Println("Successor: ", len(n.Successors))
+	End := HashString(n.Successors[0])
+	if between(n.ClientID, Key, End, true) {
+		reply.Successor = n.Successors[0]
+		reply.Final = true
+	} else {
+		reply.Successor = n.Successors[0]
+		reply.Final = false
+	}
+	return nil
+}
+
+func HashToString(value *big.Int) string {
+	hex := fmt.Sprintf("%040x", value)
+	return hex
+}
+
 func (n *NodeClient) AddNode(args *AddFingerEntryArgs, reply *AddFingerEntryReply) error {
 	fmt.Print("adding a node to the chord ring \n")
 	//n.Lock.Lock()
@@ -161,11 +218,9 @@ func (n *NodeClient) AddNode(args *AddFingerEntryArgs, reply *AddFingerEntryRepl
 	//clientAdress := args.Address
 	clientStatus := args.Status
 	if clientStatus == 1 {
-	
 
 		for i := 0; i < len(n.FingerTable); i++ {
 			fmt.Println("in the if statement")
-
 			if n.FingerTable[i] == "" {
 				var entry = AddEntry(fmt.Sprint(clientPort), i)
 				n.FingerTable[i] = fmt.Sprintf("%040x", (entry))
@@ -181,26 +236,12 @@ func (n *NodeClient) AddNode(args *AddFingerEntryArgs, reply *AddFingerEntryRepl
 	return nil
 }
 
-// test
-func (n *NodeClient) SendTest(args *FindSuccessorArgs, reply *FindSuccessorReply) error {
-
-	reply.String = args.String
-	return nil
-}
-
-// test
-func (n *NodeClient) ReciveTest(args *FindSuccessorArgs, reply *FindSuccessorReply) error {
-	fmt.Print(reply.String)
-	return nil
-}
-
 func LeaveChord() {
-
+	Node.Status = 0
 }
 func Lookup() {}
 
 func StoreFile() {
-
 }
 
 func PrintState(node *NodeClient) {
@@ -215,6 +256,10 @@ func PrintState(node *NodeClient) {
 	fmt.Printf("CheckPredecessorInterval:" + fmt.Sprint(node.CheckPredecessorInterval) + "\n ")
 	fmt.Printf("NumSuccessors:" + fmt.Sprint(node.NumSuccessors) + "\n ")
 	fmt.Printf("ClientID:" + fmt.Sprintf("%040x", (node.ClientID)) + "\n ")
+
+	for i := 0; i < len(node.Successors); i++ {
+        fmt.Printf("successor nr :[" + fmt.Sprint(i) + "]:" + node.Successors[i] + "\n ")
+    }
 }
 
 // Computes n + 2^(i-1) mod
@@ -227,7 +272,6 @@ func AddEntry(address string, fingerentry int) *big.Int {
 	fingerentryminus1 := big.NewInt(int64(fingerentry) - 1)
 	jump := new(big.Int).Exp(two, fingerentryminus1, nil)
 	sum := new(big.Int).Add(n, jump)
-
 	return new(big.Int).Mod(sum, hashMod)
 }
 
@@ -236,4 +280,72 @@ func HashString(elt string) *big.Int {
 	hasher := sha1.New()
 	hasher.Write([]byte(elt))
 	return new(big.Int).SetBytes(hasher.Sum(nil))
+}
+
+//when a node leaves or a node joins + periodcall
+
+func (n *NodeClient) Stabilize() {
+
+	// First get all successors
+	// Successors := n.getSuccessors(n.Address)
+	// Check for error
+	// if err != nil {
+
+	// 	fmt.Print("Could not get successors")
+
+	// 	if n.Successors[0] == "" {
+	// 		// Then use the node itself as successor
+	// 		n.Successors[0] = n.Address
+
+	// 	}else{
+	// 		// Successor at place 0 might not be working so we need to find a new one
+	// 		for i := 0; i < len(n.Successors); i++ {
+	// 			if i < len(n.Successors)-1 {
+	// 				n.Successors[i] = n.Successors[i+1]
+	// 			}else{
+	// 				n.Successors[i] = ""
+	// 			}
+	// 		}
+	// 	}
+
+	// }else{
+	// 	for i := 0; i < len(Successors); i++ {
+	// 		// This depends if we have the node in polace 0 or not?
+	// 		n.Successors[i] = Successors[i]
+	// 	}
+	// }
+
+	// // get predecessor of successor 0
+
+	// if err == nil {
+	// 	// Get successor
+
+	// 	// get predecessor identifier
+	// 	// if predecessor identifier is between n and successor 0
+	// 	// then successor 0 is predecessor
+	// 	if between(n.Address, Predecessor.address, successorIdentifier, false) {
+	// 		//n.Successors[0] = Predecessor
+	// 	}
+	// }
+
+	// // Notify the successor that it is the predecessor
+
+	// // Now delete all backups successors
+
+	// // If only one node in the ring then DO SOMETHING ELSE
+	// if n.Successors[0] == n.Address {
+	// 	// Do something
+	// }
+
+	// // Iterate through nodes bucket and copy file to successor 0 backup
+	// for key, value := range n.Bucket {
+	// 	if value == "" {
+	// 		break
+	// 	}else{
+	// 		copy files
+	// 	}
+	// }
+
+	// return nil
+
 }

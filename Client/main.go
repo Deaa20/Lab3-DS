@@ -75,9 +75,7 @@ func inputValidator() {
 		os.Exit(1)
 	}
 
-	if clientID == "" {
-		//hash the adress
-	}
+	
 
 	CreateNode(address, port, joinAddress, joinPort, stabilizeInterval,
 		fixFingersInterval, checkPredecessorInterval, numSuccessors, clientID)
@@ -127,21 +125,21 @@ func takeCommand(node *NodeClient) {
 	}
 }
 
-func join(node *NodeClient) {
-	fmt.Printf("Joining an existing Chord ring at %s:%d...\n", node.JoinAddress, node.JoinPort)
+// func join(node *NodeClient) {
+// 	fmt.Printf("Joining an existing Chord ring at %s:%d...\n", node.JoinAddress, node.JoinPort)
 
-	existingNode := fmt.Sprintf("%s:%d", node.JoinAddress, node.JoinPort)
-	fmt.Println("Node already exist : ", existingNode)
+// 	existingNode := fmt.Sprintf("%s:%d", node.JoinAddress, node.JoinPort)
+// 	fmt.Println("Node already exist : ", existingNode)
 
-	// successors := node.getSuccessors(existingNode)
-	//Check for error
+// 	// successors := node.getSuccessors(existingNode)
+// 	//Check for error
 
-	// Get successor list from node
-	// node.updateSuccessors(successors)
-	// node.updateFingerTable()
+// 	// Get successor list from node
+// 	// node.updateSuccessors(successors)
+// 	// node.updateFingerTable()
 
-	// TODO: Update successor list
+// 	// TODO: Update successor list
 
-}
+// }
 
 
