@@ -1,5 +1,7 @@
 package main
 
+import "math/big"
+
 type AddFingerEntryArgs struct {
 	Port    int
 	Address string
@@ -10,11 +12,30 @@ type AddFingerEntryReply struct {
 }
 
 type FindSuccessorArgs struct {
-	NodeAddress string
-	NodePort    string
+	ID *big.Int
 }
 
 type FindSuccessorReply struct {
-	Successor string
+	Successor NodeInfo
 	Final     bool
+}
+
+type GetPredecessorArgs struct {
+}
+type GetPredecessorReply struct {
+	Predecessor NodeInfo
+	Successors  []NodeInfo
+}
+
+type NotifyNodesArgs struct {
+	NodeAdress NodeInfo
+}
+
+type NotifyNodesReply struct {
+	Successors []NodeInfo
+}
+
+type PingArgs struct {
+}
+type PingReply struct {
 }

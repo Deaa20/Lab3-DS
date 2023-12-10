@@ -75,14 +75,14 @@ func inputValidator() {
 		os.Exit(1)
 	}
 
-	
-
 	CreateNode(address, port, joinAddress, joinPort, stabilizeInterval,
 		fixFingersInterval, checkPredecessorInterval, numSuccessors, clientID)
 
 	fmt.Print("waiting in the main \n")
 
 	for Node.Done() == false {
+		Stabilize()
+		FixFingers()
 		takeCommand(&Node)
 		time.Sleep(time.Second)
 
@@ -101,6 +101,7 @@ func takeCommand(node *NodeClient) {
 		"Leave for leaving the chord ring")
 
 	fmt.Scanln(&command)
+	fmt.Println(command)
 
 	if command == "Leave" {
 		node.Status = 0
@@ -124,22 +125,5 @@ func takeCommand(node *NodeClient) {
 		fmt.Print("The provided command is invalid, please follow the guide providein the welcome message. ")
 	}
 }
-
-// func join(node *NodeClient) {
-// 	fmt.Printf("Joining an existing Chord ring at %s:%d...\n", node.JoinAddress, node.JoinPort)
-
-// 	existingNode := fmt.Sprintf("%s:%d", node.JoinAddress, node.JoinPort)
-// 	fmt.Println("Node already exist : ", existingNode)
-
-// 	// successors := node.getSuccessors(existingNode)
-// 	//Check for error
-
-// 	// Get successor list from node
-// 	// node.updateSuccessors(successors)
-// 	// node.updateFingerTable()
-
-// 	// TODO: Update successor list
-
-// }
 
 
