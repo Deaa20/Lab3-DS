@@ -79,18 +79,19 @@ func inputValidator() {
 		fixFingersInterval, checkPredecessorInterval, numSuccessors, clientID)
 
 	fmt.Print("waiting in the main \n")
-
+	//firstTime := true
 	for Node.Done() == false {
+		//if firstTime == true {
 		Stabilize()
-		FixFingers()
+		//FixFingers()
+		//firstTime = false
+		//}
 		takeCommand(&Node)
 		time.Sleep(time.Second)
 
 	}
 
 }
-
-
 
 func takeCommand(node *NodeClient) {
 	var command string
@@ -101,7 +102,6 @@ func takeCommand(node *NodeClient) {
 		"Leave for leaving the chord ring")
 
 	fmt.Scanln(&command)
-	fmt.Println(command)
 
 	if command == "Leave" {
 		node.Status = 0
@@ -111,6 +111,8 @@ func takeCommand(node *NodeClient) {
 		fmt.Println("Provide the name of the file you are searching for")
 		fmt.Scanln(&searchedFileName)
 		searchedFileName = strings.TrimSpace(searchedFileName)
+		Successor := Lookup(searchedFileName, node)
+		fmt.Println("The file is stored on the  node with id : ", Successor.NodeID, "address and port :", Successor.Address, ":", Successor.Port)
 
 	}
 	if command == "Store" {
@@ -125,5 +127,3 @@ func takeCommand(node *NodeClient) {
 		fmt.Print("The provided command is invalid, please follow the guide providein the welcome message. ")
 	}
 }
-
-

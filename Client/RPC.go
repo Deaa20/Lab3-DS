@@ -33,6 +33,7 @@ type NotifyNodesArgs struct {
 
 type NotifyNodesReply struct {
 	Successors []NodeInfo
+	Check      bool
 }
 
 type PingArgs struct {

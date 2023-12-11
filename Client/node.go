@@ -10,6 +10,7 @@ import (
 	"net/rpc"
 	"strconv"
 	"sync"
+	"time"
 )
 
 //status 0 means that the node is leaving the  chord ring
@@ -144,7 +145,6 @@ func JoinChord() {
 		maxtries = maxtries - 1
 
 	}
-	fmt.Println("AFOJAJVPOJDVOJEOVJPODJVPOJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJAOPFJOPAJFOPAPOFJ")
 	Node.Successors[0].Address = address
 	Node.Successors[0].NodeID = reply.Successor.NodeID
 	num, err := strconv.Atoi(port)
@@ -204,6 +204,27 @@ func (n *NodeClient) Done() bool {
 		ret = true
 	}
 	return ret
+}
+
+func stabilizeloop() {
+	for Node.Done() == false {
+		Stabilize()
+		time.Sleep(time.Duration(Node.StabilizeInterval) * time.Millisecond)
+	}
+}
+
+func fixfingersloop() {
+	for Node.Done() == false {
+		FixFingers()
+		time.Sleep(time.Duration(Node.FixFingersInterval) * time.Millisecond)
+	}
+}
+
+func checkpredecessorloop() {
+	for Node.Done() == false {
+		CheckPredecessor()
+		time.Sleep(time.Duration(Node.CheckPredecessorInterval) * time.Millisecond)
+	}
 }
 
 //---------------------------------------------------RPC functions--------------------------------------------------------
@@ -268,10 +289,11 @@ func Stabilize() {
 			fmt.Println(Node.ClientID)
 			fmt.Println(reply.Predecessor.NodeID)
 			fmt.Println(Node.Successors[0].NodeID)
+			fmt.Println("was it here")
+			if reply.Predecessor.NodeID != nil {
+				Node.Successors[0] = reply.Predecessor
 
-			fmt.Println("REPLY PREDECESSOR SHOULD BE 2", reply.Predecessor)
-			
-			Node.Successors = reply.Successors
+			}
 			fmt.Println("Successors", reply.Successors)
 
 			address = Node.Successors[0].Address
@@ -282,8 +304,10 @@ func Stabilize() {
 			if Node.Successors[0].NodeID != Node.ClientID {
 				bok := callNode("NodeClient.NotifyNodes", &NotifyArgs, &NotifyReply, address, fmt.Sprint(port))
 				if bok {
-					fmt.Println("PLEASE DONT SHOW UP ")
-					Node.Successors = NotifyReply.Successors
+
+					if NotifyReply.Successors != nil {
+						Node.Successors = NotifyReply.Successors
+					}
 
 				} else {
 					fmt.Println("error")
@@ -302,18 +326,23 @@ func Stabilize() {
 			fmt.Println(Node.Successors[0].NodeID)
 			if reply.Predecessor.NodeID == nil {
 
-			} else if between(Node.ClientID, reply.Predecessor.NodeID, Node.Successors[0].NodeID, false) {
+			} else if between(Node.ClientID, reply.Predecessor.NodeID, Node.Successors[0].NodeID, true) {
 
+				fmt.Println("was it here 3")
+				Node.Successors[0] = reply.Predecessor
 
-				Node.Successors = reply.Successors
 				fmt.Println("THIS SHOULD NOT HAPPEN WHEN SUCC IS 2 ")
 			}
 			address = Node.Successors[0].Address
 			port = Node.Successors[0].Port
 			NotifyArgs := NotifyNodesArgs{NodeInfo{Address: Node.Address, Port: Node.Port, NodeID: Node.ClientID}}
 			NotifyReply := NotifyNodesReply{}
-			fmt.Print("im at the stablization and it wokr")
+			fmt.Print("address", address)
 			ok = callNode("NodeClient.NotifyNodes", &NotifyArgs, &NotifyReply, address, fmt.Sprint(port))
+			fmt.Println("reply", NotifyReply.Successors)
+			if NotifyReply.Successors != nil {
+				Node.Successors = NotifyReply.Successors
+			}
 
 		}
 
@@ -322,13 +351,15 @@ func Stabilize() {
 
 func (n *NodeClient) NotifyNodes(args *NotifyNodesArgs, reply *NotifyNodesReply) error {
 	if Node.Predecessor.Address == "" || between(Node.Predecessor.NodeID, args.NodeAdress.NodeID, Node.ClientID, true) {
-		fmt.Println("WHAT THE FUCK")
+
 		fmt.Println(Node.Predecessor.Address)
 
 		Node.Predecessor = args.NodeAdress
 
 	}
 	reply.Successors = CopySuccessors()
+
+	fmt.Println("THese are the successors i am giving to my next freind", reply.Successors)
 
 	return nil
 }
@@ -345,20 +376,17 @@ func (n *NodeClient) GetPredecessor(args *GetPredecessorArgs, reply *GetPredeces
 }
 
 func CopySuccessors() []NodeInfo {
-	Succesors := Node.Successors
-	for i := Node.NumSuccessors - 2; i >= 0; i-- {
-		Succesors[i+1] = Succesors[i]
-	}
-	if Node.Successors[0].NodeID == Node.ClientID && Node.Predecessor.Address != "" {
-		Succesors[0].Address = Node.Predecessor.Address
-		Succesors[0].Port = Node.Predecessor.Port
-		Succesors[0].NodeID = Node.Predecessor.NodeID
 
-	} else {
-		Succesors[0].Address = Node.Address
-		Succesors[0].Port = Node.Port
-		Succesors[0].NodeID = Node.ClientID
+	// COPY NODE SUCESSORS,  SHIFT ALL MEMEBERS OF NODE SUCESSORS TO THE RIGHT AND ADD CURRENT NODE TO FIRST POSITION
+	Succesors := make([]NodeInfo, Node.NumSuccessors)
+	for i := range Succesors {
+		Succesors[i] = Node.Successors[i]
 	}
+	for i := len(Node.Successors) - 1; i > 0; i-- {
+		Succesors[i] = Node.Successors[i-1]
+	}
+	Succesors[0] = NodeInfo{Address: Node.Address, Port: Node.Port, NodeID: Node.ClientID}
+
 	return Succesors
 
 }
@@ -399,7 +427,45 @@ func LeaveChord() {
 	Node.Status = 0
 }
 
-func Lookup() {}
+func Lookup(filename string, node *NodeClient) NodeInfo {
+	key := HashString(filename)
+	fmt.Println("key" + key.String())
+
+	args := FindSuccessorArgs{ID: key}
+	reply := FindSuccessorReply{}
+	maxTries := 5
+	done := false
+	address := Node.Successors[0].Address
+	port := fmt.Sprint(Node.Successors[0].Port)
+	for done != true && maxTries > 0 {
+		if Node.Successors[0].NodeID == Node.ClientID {
+			ok := Node.FindSuccessor(&args, &reply)
+			if ok == nil {
+				address = reply.Successor.Address
+				port = fmt.Sprint(reply.Successor.Port)
+				done = reply.Final
+				maxTries = maxTries - 1
+			}
+		} else {
+			ok := callNode("NodeClient.FindSuccessor", &args, &reply, address, port)
+
+			if ok {
+
+				address = reply.Successor.Address
+				port = fmt.Sprint(reply.Successor.Port)
+				done = reply.Final
+				maxTries = maxTries - 1
+
+			} else {
+				fmt.Println("error finding successor ")
+			}
+
+		}
+
+	}
+	return reply.Successor
+
+}
 
 func StoreFile() {
 }
