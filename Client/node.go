@@ -464,15 +464,14 @@ func clientStoreFile(filePath string, node *NodeClient) error {
 	}
 
 	// Step 2: Prepare the arguments for the RPC call
-	args := &StoreFileArgs{
-		FileName: fileName,
-		Content:  content,
-	}
+	args := StoreFileArgs{	}
+	args.FileName = fileName
+	args.Content = content
 
 	reply := StoreFileReply{}
 
 	// Step 3: Make the RPC call to store the file on the target node
-	ok := callNode("NodeClient.StoreFile", args, reply, storageNode.Address, fmt.Sprint(storageNode.Port))
+	ok := callNode("NodeClient.StoreFile", &args, &reply, storageNode.Address, fmt.Sprint(storageNode.Port))
 	if !ok {
 		return errors.New("Error storing file on node")
 	}
