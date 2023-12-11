@@ -2,12 +2,16 @@ package main
 
 import (
 	"crypto/sha1"
+	"errors"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"math/big"
 	"net"
 	"net/http"
 	"net/rpc"
+	"os"
+	"path/filepath"
 	"strconv"
 	"sync"
 	"time"
@@ -72,6 +76,7 @@ func CreateNode(address string, port int, joinAddress string, joinPort int, stab
 	}
 
 	fmt.Println("successor" + fmt.Sprint(Node.NumSuccessors))
+	go stabilizeloop()
 
 	if Node.JoinAddress == "" {
 		NewChord()
@@ -427,6 +432,76 @@ func LeaveChord() {
 	Node.Status = 0
 }
 
+func CheckFile(filePath string) bool {
+	if _, err := os.Stat(filePath); err == nil {
+		return true
+	} else {
+		fmt.Printf("File does not exist\n")
+		return false
+	}
+}
+
+func clientStoreFile(filePath string, node *NodeClient) error {
+
+	fmt.Println("Storing file: " + filePath)
+	if !CheckFile("." + filePath) {
+		return nil
+	}
+	_, fileName := filepath.Split(filePath)
+
+	// Step 1: Look up the node where the file should be stored
+	storageNode := Lookup(fileName, node)
+	if storageNode.NodeID == Node.ClientID {
+		fmt.Fprintln(os.Stderr, "Error: File should be stored on this node  node")
+
+	}
+
+	//step 1.5 get file content in []byte
+	content, err := ioutil.ReadFile("." + filePath)
+	if err != nil {
+		fmt.Println("Error reading file")
+		return err
+	}
+
+	// Step 2: Prepare the arguments for the RPC call
+	args := &StoreFileArgs{
+		FileName: fileName,
+		Content:  content,
+	}
+
+	reply := StoreFileReply{}
+
+	// Step 3: Make the RPC call to store the file on the target node
+	ok := callNode("NodeClient.StoreFile", args, reply, storageNode.Address, fmt.Sprint(storageNode.Port))
+	if !ok {
+		return errors.New("Error storing file on node")
+	}
+	fmt.Println("Storing file on node with ID: " + fmt.Sprint(storageNode.Port))
+
+	return nil
+}
+
+func (n *NodeClient) StoreFile(args *StoreFileArgs, reply *StoreFileReply) error {
+
+	// Step 1: Create a directory with the node's address if it doesn't exist
+	directoryPath := filepath.Join(".", fmt.Sprint(n.Port))
+	if _, err := os.Stat(directoryPath); os.IsNotExist(err) {
+		err := os.Mkdir(directoryPath, os.ModeDir)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Step 2: Save the file in the created directory
+	filePath := filepath.Join(directoryPath, args.FileName)
+	err := ioutil.WriteFile(filePath, args.Content, 0644)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func Lookup(filename string, node *NodeClient) NodeInfo {
 	key := HashString(filename)
 	fmt.Println("key" + key.String())
@@ -466,10 +541,6 @@ func Lookup(filename string, node *NodeClient) NodeInfo {
 	return reply.Successor
 
 }
-
-func StoreFile() {
-}
-
 func PrintState(node *NodeClient) {
 	fmt.Printf("Printing the state of the ccurrent node\n ")
 	fmt.Printf("Address:" + node.Address + "\n ")

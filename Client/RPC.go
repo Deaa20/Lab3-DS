@@ -40,3 +40,11 @@ type PingArgs struct {
 }
 type PingReply struct {
 }
+
+type StoreFileArgs struct {
+	FileName string
+	Content  []byte
+}
+
+type StoreFileReply struct {
+}

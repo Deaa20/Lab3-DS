@@ -105,22 +105,19 @@ func takeCommand(node *NodeClient) {
 
 	if command == "Leave" {
 		node.Status = 0
-	}
-
-	if command == "Lookup" {
+	} else if command == "Lookup" {
 		fmt.Println("Provide the name of the file you are searching for")
 		fmt.Scanln(&searchedFileName)
 		searchedFileName = strings.TrimSpace(searchedFileName)
 		Successor := Lookup(searchedFileName, node)
 		fmt.Println("The file is stored on the  node with id : ", Successor.NodeID, "address and port :", Successor.Address, ":", Successor.Port)
 
-	}
-	if command == "Store" {
+	} else if command == "StoreFile" {
 		fmt.Println("Provide the name of the file you are storing")
 		fmt.Scanln(&storedFileName)
 		storedFileName = strings.TrimSpace(storedFileName)
-	}
-	if command == "PrintState" {
+		clientStoreFile(storedFileName, node)
+	} else if command == "PrintState" {
 		PrintState(node)
 
 	} else {
