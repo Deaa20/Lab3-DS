@@ -3,6 +3,8 @@ package main
 //make predecesoor and successor store address and port
 
 import (
+	"crypto/rand"
+	"crypto/rsa"
 	"flag"
 	"fmt"
 	"os"
@@ -75,8 +77,13 @@ func inputValidator() {
 		os.Exit(1)
 	}
 
+	publicKey, privateKey, err := GenerateKeyPair()
+	if err != nil {
+		fmt.Println("Error: Failed to generate key pair.")
+	}
+
 	CreateNode(address, port, joinAddress, joinPort, stabilizeInterval,
-		fixFingersInterval, checkPredecessorInterval, numSuccessors, clientID)
+		fixFingersInterval, checkPredecessorInterval, numSuccessors, clientID, publicKey, privateKey)
 
 	fmt.Print("waiting in the main \n")
 	//firstTime := true
@@ -91,6 +98,18 @@ func inputValidator() {
 
 	}
 
+}
+
+// Generate a new key pair for the node
+func GenerateKeyPair() (*rsa.PublicKey, *rsa.PrivateKey, error) {
+	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	publicKey := &privateKey.PublicKey
+
+	return publicKey, privateKey, nil
 }
 
 func takeCommand(node *NodeClient) {

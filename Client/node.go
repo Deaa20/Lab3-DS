@@ -1,6 +1,8 @@
 package main
 
 import (
+	"crypto/rand"
+	"crypto/rsa"
 	"crypto/sha1"
 	"errors"
 	"fmt"
@@ -40,18 +42,23 @@ type NodeClient struct {
 	Lock                     sync.Mutex
 	Status                   int
 	next                     int
+	PublicKey                *rsa.PublicKey
+	PrivateKey               *rsa.PrivateKey
 }
 
 var Node NodeClient
+
 
 type NodeInfo struct {
 	Address string
 	Port    int
 	NodeID  *big.Int
+	PublicKey	*rsa.PublicKey
 }
 
 func CreateNode(address string, port int, joinAddress string, joinPort int, stabilizeInterval int,
-	fixFingersInterval int, checkPredecessorInterval int, numSuccessors int, clientID string) NodeClient {
+	fixFingersInterval int, checkPredecessorInterval int, numSuccessors int, clientID string, publicKey *rsa.PublicKey, privateKey *rsa.PrivateKey) NodeClient {
+
 
 	Node = NodeClient{
 		Address:                  address,
@@ -64,6 +71,8 @@ func CreateNode(address string, port int, joinAddress string, joinPort int, stab
 		NumSuccessors:            numSuccessors,
 		Status:                   1,
 		next:                     0,
+		PublicKey:                publicKey,
+		PrivateKey:               privateKey,
 	}
 
 	if clientID == "" {
@@ -94,12 +103,14 @@ func NewChord() {
 		Node.Successors[i].Address = Node.Address
 		Node.Successors[i].Port = Node.Port
 		Node.Successors[i].NodeID = Node.ClientID
+		Node.Successors[i].PublicKey = Node.PublicKey
 	}
 
 	for i := range Node.FingerTable {
 		Node.FingerTable[i].Address = Node.Address
 		Node.FingerTable[i].Port = Node.Port
 		Node.FingerTable[i].NodeID = Node.ClientID
+		Node.FingerTable[i].PublicKey = Node.PublicKey
 	}
 	go Node.Server(Node.Port)
 }
@@ -112,12 +123,14 @@ func JoinChord() {
 		Node.Successors[i].Address = Node.Address
 		Node.Successors[i].Port = Node.Port
 		Node.Successors[i].NodeID = Node.ClientID
+		Node.Successors[i].PublicKey = Node.PublicKey
 	}
 
 	for i := range Node.FingerTable {
 		Node.FingerTable[i].Address = Node.Address
 		Node.FingerTable[i].Port = Node.Port
 		Node.FingerTable[i].NodeID = Node.ClientID
+		Node.FingerTable[i].PublicKey = Node.PublicKey
 	}
 	go Node.Server(Node.Port)
 	args := FindSuccessorArgs{}
@@ -340,7 +353,7 @@ func Stabilize() {
 			}
 			address = Node.Successors[0].Address
 			port = Node.Successors[0].Port
-			NotifyArgs := NotifyNodesArgs{NodeInfo{Address: Node.Address, Port: Node.Port, NodeID: Node.ClientID}}
+			NotifyArgs := NotifyNodesArgs{NodeInfo{Address: Node.Address, Port: Node.Port, NodeID: Node.ClientID, PublicKey: Node.PublicKey}}
 			NotifyReply := NotifyNodesReply{}
 			fmt.Print("address", address)
 			ok = callNode("NodeClient.NotifyNodes", &NotifyArgs, &NotifyReply, address, fmt.Sprint(port))
@@ -390,7 +403,7 @@ func CopySuccessors() []NodeInfo {
 	for i := len(Node.Successors) - 1; i > 0; i-- {
 		Succesors[i] = Node.Successors[i-1]
 	}
-	Succesors[0] = NodeInfo{Address: Node.Address, Port: Node.Port, NodeID: Node.ClientID}
+	Succesors[0] = NodeInfo{Address: Node.Address, Port: Node.Port, NodeID: Node.ClientID, PublicKey: Node.PublicKey}
 
 	return Succesors
 
@@ -441,36 +454,64 @@ func CheckFile(filePath string) bool {
 	}
 }
 
-func clientStoreFile(filePath string, node *NodeClient) error {
 
+// Encrypt using RSA public key
+func Encrypt(plainText []byte, publicKey *rsa.PublicKey) ([]byte, error) {
+	ciphertext, err := rsa.EncryptPKCS1v15(rand.Reader, publicKey, plainText)
+	if err != nil {
+		return nil, err
+	}
+	return ciphertext, nil
+}
+
+// Decrypt using RSA private key
+func Decrypt(ciphertext []byte, privateKey *rsa.PrivateKey) ([]byte, error) {
+	plainText, err := rsa.DecryptPKCS1v15(rand.Reader, privateKey, ciphertext)
+	if err != nil {
+		return nil, err
+	}
+	return plainText, nil
+}
+
+
+func clientStoreFile(filePath string, node *NodeClient) error {
 	fmt.Println("Storing file: " + filePath)
+
 	if !CheckFile("." + filePath) {
 		return nil
 	}
-	_, fileName := filepath.Split(filePath)
 
-	// Step 1: Look up the node where the file should be stored
+	_, fileName := filepath.Split(filePath)
+	
 	storageNode := Lookup(fileName, node)
 	if storageNode.NodeID == Node.ClientID {
 		fmt.Fprintln(os.Stderr, "Error: File should be stored on this node  node")
 
 	}
 
-	//step 1.5 get file content in []byte
+	// Read the content of the file
 	content, err := ioutil.ReadFile("." + filePath)
 	if err != nil {
 		fmt.Println("Error reading file")
 		return err
 	}
 
-	// Step 2: Prepare the arguments for the RPC call
-	args := StoreFileArgs{	}
-	args.FileName = fileName
-	args.Content = content
+	// Encrypt the content
+	encryptedContent, err := Encrypt(content, storageNode.PublicKey)
+	if err != nil {
+		fmt.Println("Error encrypting content")
+		return err
+	}
+
+	// Prepare the arguments for the RPC call
+	args := StoreFileArgs{
+		FileName: fileName,
+		Content:  encryptedContent,
+	}
 
 	reply := StoreFileReply{}
 
-	// Step 3: Make the RPC call to store the file on the target node
+	// Make the RPC call to store the file on the target node
 	ok := callNode("NodeClient.StoreFile", &args, &reply, storageNode.Address, fmt.Sprint(storageNode.Port))
 	if !ok {
 		return errors.New("Error storing file on node")
@@ -481,8 +522,7 @@ func clientStoreFile(filePath string, node *NodeClient) error {
 }
 
 func (n *NodeClient) StoreFile(args *StoreFileArgs, reply *StoreFileReply) error {
-
-	// Step 1: Create a directory with the node's address if it doesn't exist
+	// Create a directory with the node's address if it doesn't exist
 	directoryPath := filepath.Join(".", fmt.Sprint(n.Port))
 	if _, err := os.Stat(directoryPath); os.IsNotExist(err) {
 		err := os.Mkdir(directoryPath, os.ModeDir)
@@ -491,9 +531,20 @@ func (n *NodeClient) StoreFile(args *StoreFileArgs, reply *StoreFileReply) error
 		}
 	}
 
-	// Step 2: Save the file in the created directory
+	// Save the file in the created directory
 	filePath := filepath.Join(directoryPath, args.FileName)
-	err := ioutil.WriteFile(filePath, args.Content, 0644)
+
+	// Decrypt the content before writing to file using the node's private key
+	decryptedContent, err := Decrypt(args.Content, n.PrivateKey)
+	if err != nil {
+		return err
+	}
+
+	if err != nil {
+		return err
+	}
+
+	err = ioutil.WriteFile(filePath, decryptedContent, 0644)
 	if err != nil {
 		return err
 	}
@@ -588,5 +639,5 @@ func Closest_Preceding_Node(ID *big.Int) NodeInfo {
 			return Node.FingerTable[i]
 		}
 	}
-	return NodeInfo{Address: Node.Address, Port: Node.Port, NodeID: Node.ClientID}
+	return NodeInfo{Address: Node.Address, Port: Node.Port, NodeID: Node.ClientID, PublicKey: Node.PublicKey}
 }
