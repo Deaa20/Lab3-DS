@@ -86,6 +86,8 @@ func CreateNode(address string, port int, joinAddress string, joinPort int, stab
 
 	fmt.Println("successor" + fmt.Sprint(Node.NumSuccessors))
 	go stabilizeloop()
+	//go fixfingersloop()
+	//go checkpredecessorloop()
 
 	if Node.JoinAddress == "" {
 		NewChord()
@@ -304,21 +306,24 @@ func Stabilize() {
 		ok := Node.GetPredecessor(&args, &reply)
 		if ok == nil {
 
-			fmt.Println(Node.ClientID)
-			fmt.Println(reply.Predecessor.NodeID)
-			fmt.Println(Node.Successors[0].NodeID)
-			fmt.Println("was it here")
+			//fmt.Println(Node.ClientID)
+			//fmt.Println(reply.Predecessor.NodeID)
+			//fmt.Println(Node.Successors[0].NodeID)
+			//fmt.Println("was it here")
 			if reply.Predecessor.NodeID != nil {
 				Node.Successors[0] = reply.Predecessor
 
 			}
-			fmt.Println("Successors", reply.Successors)
+			// fmt.Println("Successors", reply.Successors)
 
+			//Deaa Changed here
 			address = Node.Successors[0].Address
 			port = Node.Successors[0].Port
-			NotifyArgs := NotifyNodesArgs{NodeInfo{Address: Node.Address, Port: Node.Port, NodeID: Node.ClientID}}
+			nodeID := Node.Successors[0].NodeID
+			
+			NotifyArgs := NotifyNodesArgs{NodeInfo{Address: Node.Address, Port: Node.Port, NodeID: nodeID, PublicKey: Node.PublicKey}}
 			NotifyReply := NotifyNodesReply{}
-			fmt.Print("im at the stablization and it wokr")
+			//fmt.Print("im at the stablization and it wokr")
 			if Node.Successors[0].NodeID != Node.ClientID {
 				bok := callNode("NodeClient.NotifyNodes", &NotifyArgs, &NotifyReply, address, fmt.Sprint(port))
 				if bok {
@@ -335,29 +340,29 @@ func Stabilize() {
 		}
 
 	} else {
-		fmt.Println("\n", Node.Successors[0].NodeID, "\n")
+	//	fmt.Println("\n", Node.Successors[0].NodeID, "\n")
 		ok := callNode("NodeClient.GetPredecessor", &args, &reply, address, fmt.Sprint(port))
 		if ok {
-			fmt.Println("TEST TEST TEST TEST PREDECESSOR WAS ")
-			fmt.Println(Node.ClientID)
-			fmt.Println(reply.Predecessor.NodeID)
-			fmt.Println(Node.Successors[0].NodeID)
+			// fmt.Println("TEST TEST TEST TEST PREDECESSOR WAS ")
+			// fmt.Println(Node.ClientID)
+			// fmt.Println(reply.Predecessor.NodeID)
+			// fmt.Println(Node.Successors[0].NodeID)
 			if reply.Predecessor.NodeID == nil {
 
 			} else if between(Node.ClientID, reply.Predecessor.NodeID, Node.Successors[0].NodeID, true) {
 
-				fmt.Println("was it here 3")
+				//fmt.Println("was it here 3")
 				Node.Successors[0] = reply.Predecessor
 
-				fmt.Println("THIS SHOULD NOT HAPPEN WHEN SUCC IS 2 ")
+				//fmt.Println("THIS SHOULD NOT HAPPEN WHEN SUCC IS 2 ")
 			}
 			address = Node.Successors[0].Address
 			port = Node.Successors[0].Port
 			NotifyArgs := NotifyNodesArgs{NodeInfo{Address: Node.Address, Port: Node.Port, NodeID: Node.ClientID, PublicKey: Node.PublicKey}}
 			NotifyReply := NotifyNodesReply{}
-			fmt.Print("address", address)
+			//fmt.Print("address", address)
 			ok = callNode("NodeClient.NotifyNodes", &NotifyArgs, &NotifyReply, address, fmt.Sprint(port))
-			fmt.Println("reply", NotifyReply.Successors)
+			// fmt.Println("reply", NotifyReply.Successors)
 			if NotifyReply.Successors != nil {
 				Node.Successors = NotifyReply.Successors
 			}
@@ -370,14 +375,14 @@ func Stabilize() {
 func (n *NodeClient) NotifyNodes(args *NotifyNodesArgs, reply *NotifyNodesReply) error {
 	if Node.Predecessor.Address == "" || between(Node.Predecessor.NodeID, args.NodeAdress.NodeID, Node.ClientID, true) {
 
-		fmt.Println(Node.Predecessor.Address)
+		//fmt.Println(Node.Predecessor.Address)
 
 		Node.Predecessor = args.NodeAdress
 
 	}
 	reply.Successors = CopySuccessors()
 
-	fmt.Println("THese are the successors i am giving to my next freind", reply.Successors)
+	// fmt.Println("THese are the successors i am giving to my next freind", reply.Successors)
 
 	return nil
 }
@@ -386,7 +391,7 @@ func GetPredecessorLocal() {
 }
 
 func (n *NodeClient) GetPredecessor(args *GetPredecessorArgs, reply *GetPredecessorReply) error {
-	fmt.Println("Hey i am node ," + Node.ClientID.String() + "i am giving you " + Node.Predecessor.NodeID.String())
+	// fmt.Println("Hey i am node ," + Node.ClientID.String() + "i am giving you " + Node.Predecessor.NodeID.String())
 	reply.Predecessor = Node.Predecessor
 	reply.Successors = CopySuccessors()
 
@@ -475,7 +480,7 @@ func Decrypt(ciphertext []byte, privateKey *rsa.PrivateKey) ([]byte, error) {
 
 
 func clientStoreFile(filePath string, node *NodeClient) error {
-	fmt.Println("Storing file: " + filePath)
+	// fmt.Println("Storing file: " + filePath)
 
 	if !CheckFile("." + filePath) {
 		return nil
@@ -488,6 +493,8 @@ func clientStoreFile(filePath string, node *NodeClient) error {
 		fmt.Fprintln(os.Stderr, "Error: File should be stored on this node  node")
 
 	}
+
+	fmt.Println("|||||Storing file on node with ID: " + fmt.Sprint(storageNode.Port))
 
 	// Read the content of the file
 	content, err := ioutil.ReadFile("." + filePath)
@@ -530,6 +537,8 @@ func (n *NodeClient) StoreFile(args *StoreFileArgs, reply *StoreFileReply) error
 			return err
 		}
 	}
+	fmt.Println("|||||Storing file on node with ID 22: " + fmt.Sprint(n.Port))
+
 
 	// Save the file in the created directory
 	filePath := filepath.Join(directoryPath, args.FileName)
@@ -605,10 +614,19 @@ func PrintState(node *NodeClient) {
 	fmt.Printf("ClientID:" + fmt.Sprintf("%040x", (node.ClientID)) + "\n ")
 
 	for i := 0; i < len(node.Successors); i++ {
-		fmt.Printf("successor nr :[" + fmt.Sprint(i) + "]:" + node.Successors[i].NodeID.String() + "\n ")
+	fmt.Printf("Printing the state of the  successor nr :[" + fmt.Sprint(i) + "]:\n")
+	fmt.Printf("Address:" + node.Successors[i].Address + "\n ")
+	fmt.Printf("port:" + fmt.Sprint(node.Successors[i].Port) + "\n ")
+	fmt.Printf("ClientID:" + fmt.Sprintf("%040x", (node.Successors[i].NodeID)) + "\n\n ")
 	}
-}
 
+	for i := 0; i < len(node.FingerTable)-150; i++ {
+	fmt.Printf("Printing the state of the  node at index nr :[" + fmt.Sprint(i) + "] in the finger table:\n")
+	fmt.Printf("Address:" + node.FingerTable[i].Address + "\n ")
+	fmt.Printf("port:" + fmt.Sprint(node.FingerTable[i].Port) + "\n ")
+	fmt.Printf("ClientID:" + fmt.Sprintf("%040x", (node.FingerTable[i].NodeID)) + "\n\n ")
+}
+}
 // Computes n + 2^(i-1) mod
 func AddEntry(address string, fingerentry int) *big.Int {
 	const keySize = sha1.Size * 8

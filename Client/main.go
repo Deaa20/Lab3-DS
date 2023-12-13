@@ -90,7 +90,6 @@ func inputValidator() {
 	for Node.Done() == false {
 		//if firstTime == true {
 		Stabilize()
-		//FixFingers()
 		//firstTime = false
 		//}
 		takeCommand(&Node)
